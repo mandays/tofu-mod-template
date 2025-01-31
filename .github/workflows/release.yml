@@ -1,0 +1,53 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+      - '!v*.*.*-rc'
+      - '!v*.*.*-dev'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/mandays/automator:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GH_TOKEN }}
+      options: --user root
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      -
+        name: Before checkout
+        shell: bash
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      -
+        name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      -
+        name: Generate CHANGELOG.md
+        run: |
+          git-chglog \
+          --config /automator/.chglog/config.yml \
+          --template /automator/.chglog/CHANGELOG.tpl.md \
+          --repository-url "https://github.com/${{ github.repository }}" \
+          --output CHANGELOG.md ${{ env.TAG }}
+      -
+        uses: qoomon/actions--access-token@v3
+        id: access-token
+        with:
+          permissions: |
+            contents: write
+      -
+        name: Generate Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          body_path: CHANGELOG.md
+          token: ${{ steps.access-token.outputs.token }}

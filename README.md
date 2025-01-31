@@ -1,1 +1,1 @@
-# tofu-mod-template
+# OpenTofu Module Template
